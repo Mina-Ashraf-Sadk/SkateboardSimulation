@@ -1,7 +1,8 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include <GameFramework/Character.h>
+#include "GameFramework/Character.h"
+#include "InputActionValue.h" // For FInputActionValue
 #include "SkateboarderCharacter.generated.h"
 
 UCLASS()
@@ -11,42 +12,96 @@ class SKATEBOARDER_API ASkateboarderCharacter : public ACharacter
 
 public:
 	ASkateboarderCharacter();
+	
+	UFUNCTION()
+	void ExecutePush();
+	
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnDoubleJump();
 
 protected:
 	virtual void BeginPlay() override;
-
-public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	// Combined movement function for forward/backward input.
+	UFUNCTION()
+	void Move(const FInputActionValue& Value);
+
+	// Combined lean function for left/right input.
+	UFUNCTION()
+	void Lean(const FInputActionValue& Value);
 private:
-	// Movement Functions
-	void MoveForward(float Value);
-	void Turn(float Value);
-	void Push();       // Speed Up
-	void SlowDown();   // Apply Friction
+	// Push & Jump Functions
+	UFUNCTION()
+	void Push(const FInputActionValue& Value);
+
+	UFUNCTION()
 	void PerformJump();
 
-	// Helper Function for Movement
-	void ApplyFriction(float DeltaTime);
-
-	// Components
-	UPROPERTY(VisibleAnywhere, Category = "Components")
-	class UCameraComponent* CameraComp;
-
-	//UPROPERTY(VisibleAnywhere, Category = "Components")
-	//class UScoreComponent* ScoreComp;
+	UFUNCTION()
+	void ResetJump();
 
 	// Movement Variables
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float PushForce = 600.0f;
+	float MaxSpeed = 1500.f;
 
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float SlowDownRate = 300.0f;
+	float PushForce = 1000.f;
 
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float MaxSpeed = 2000.0f;
+	float DefaultFrictionRate = 1.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float TurnSpeed = 60.0f;
+	float BrakePower = 10.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float LeanAngle = 30.f;
+	
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float NormalSpeedThreshhold = 300;
+	
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float BoostSpeedThreshhold = 600;
+	
+
+	// Jump Cooldown
+	bool bCanJump = true;
+
+	// Track if the player is moving forward (W pressed)
+	bool bIsMovingForward = false;
+
+	// Boost hold duration: the boost stays at high speed for this long before decaying.
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float BoostHoldDuration = 1.0f;
+
+	// Time of the last push boost.
+	float LastPushTime = 0.0f;
+
+	// Enhanced Input Variables
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputMappingContext* InputMappingContext;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* MoveAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* LeanAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* PushAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* JumpAction;
+
+	// Push Montage – assign a montage that contains a notify state (e.g., UAnimNotifyState_Push) to trigger ExecutePush().
+	UPROPERTY(EditAnywhere, Category = "Montages")
+	class UAnimMontage* PushMontage;
+
+	// Timer Handles
+	FTimerHandle PushDecayTimerHandle;
+	FTimerHandle JumpCooldownTimerHandle;
+	bool bBoosting;
+
+	float AppliedFrictionRate = 1.0f;
 };

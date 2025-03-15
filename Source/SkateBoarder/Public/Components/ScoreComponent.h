@@ -10,7 +10,6 @@ UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class SKATEBOARDER_API UScoreComponent : public UActorComponent
 {
 	GENERATED_BODY()
-	GENERATED_BODY()
 
 public:
 	UScoreComponent();

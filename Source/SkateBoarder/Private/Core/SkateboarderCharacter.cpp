@@ -1,94 +1,158 @@
-﻿
-
-
-#include "SkateBoarder/Public/Core/SkateboarderCharacter.h"
-
-#include <Camera/CameraComponent.h>
-#include <GameFramework/CharacterMovementComponent.h>
-
+﻿#include "Core/SkateboarderCharacter.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "TimerManager.h"
+#include "Animation/AnimInstance.h"
 
 ASkateboarderCharacter::ASkateboarderCharacter()
 {
-    PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = true;
+	GetCharacterMovement()->MaxWalkSpeed = 0;
+	GetCharacterMovement()->BrakingFrictionFactor = 2.0f;
+	GetCharacterMovement()->GroundFriction = 3.0f;
 
-    // Create a Camera Component
-    CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComp"));
-    CameraComp->SetupAttachment(RootComponent);
-
-    // Create a Score Component
-   // ScoreComp = CreateDefaultSubobject<UScoreComponent>(TEXT("ScoreComp"));
-
-    // Configure Movement
-    GetCharacterMovement()->MaxWalkSpeed = 600.0f;
-    GetCharacterMovement()->BrakingFrictionFactor = 1.5f; // Helps slow down naturally
-    GetCharacterMovement()->GroundFriction = 2.0f; // Keeps player from slipping
 }
+
 
 void ASkateboarderCharacter::BeginPlay()
 {
-    Super::BeginPlay();
+	Super::BeginPlay();
+	
+	AppliedFrictionRate = DefaultFrictionRate;
+
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+		{
+			if (InputMappingContext)
+				Subsystem->AddMappingContext(InputMappingContext, 0);
+		}
+	}
 }
 
 void ASkateboarderCharacter::Tick(float DeltaTime)
 {
-    Super::Tick(DeltaTime);
-    ApplyFriction(DeltaTime);
+	Super::Tick(DeltaTime);
+	
+	if (GetCharacterMovement()->MaxWalkSpeed > 0.f)
+	{
+		AddMovementInput(GetActorForwardVector(), 1);
+
+		float NewSpeed = FMath::FInterpTo(GetCharacterMovement()->MaxWalkSpeed, 0.f, DeltaTime, AppliedFrictionRate);
+		GetCharacterMovement()->MaxWalkSpeed = NewSpeed;
+
+		// Print the current speed on screen
+		FString SpeedMessage = FString::Printf(TEXT("Current Speed: %.2f"), NewSpeed);
+		GEngine->AddOnScreenDebugMessage(1, 0.f, FColor::Cyan, SpeedMessage);
+	}
 }
+
 
 void ASkateboarderCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-    Super::SetupPlayerInputComponent(PlayerInputComponent);
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-    // Bind Movement Inputs
-    PlayerInputComponent->BindAxis("MoveForward", this, &ASkateboarderCharacter::MoveForward);
-    PlayerInputComponent->BindAxis("Turn", this, &ASkateboarderCharacter::Turn);
-
-    // Bind Actions
-    PlayerInputComponent->BindAction("Push", IE_Pressed, this, &ASkateboarderCharacter::Push);
-    PlayerInputComponent->BindAction("SlowDown", IE_Pressed, this, &ASkateboarderCharacter::SlowDown);
-    PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ASkateboarderCharacter::PerformJump);
+	if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+	{
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ASkateboarderCharacter::Move);
+		EnhancedInput->BindAction(LeanAction, ETriggerEvent::Triggered, this, &ASkateboarderCharacter::Lean);
+		EnhancedInput->BindAction(PushAction, ETriggerEvent::Triggered, this, &ASkateboarderCharacter::Push);
+		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ASkateboarderCharacter::PerformJump);
+	}
 }
-
-void ASkateboarderCharacter::MoveForward(float Value)
+void ASkateboarderCharacter::Move(const FInputActionValue& Value)
 {
-    if (Value != 0.0f)
-    {
-        AddMovementInput(GetActorForwardVector(), Value);
-    }
+	float MoveValue = Value.Get<float>();
+	bIsMovingForward = (MoveValue > 0.1f);
+
+	if (GetCharacterMovement()->IsFalling())
+	{
+		return;
+	}
+
+	if (MoveValue < 0.0f)
+	{
+		AppliedFrictionRate = DefaultFrictionRate * BrakePower;
+	}
+	else if (MoveValue > 0.0f)
+	{
+		AppliedFrictionRate = DefaultFrictionRate;
+
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance && !AnimInstance->IsAnyMontagePlaying() && (GetCharacterMovement()->MaxWalkSpeed < NormalSpeedThreshhold))
+		{
+			AnimInstance->Montage_Play(PushMontage);
+		}
+	}
 }
 
-void ASkateboarderCharacter::Turn(float Value)
+void ASkateboarderCharacter::Lean(const FInputActionValue& Value)
 {
-    if (Value != 0.0f)
-    {
-        AddControllerYawInput(Value * TurnSpeed * GetWorld()->GetDeltaSeconds());
-    }
+	float LeanValue = Value.Get<float>();
+	if (!FMath::IsNearlyZero(LeanValue, 0.01f))
+	{
+		AddControllerYawInput(LeanValue * LeanAngle * GetWorld()->GetDeltaSeconds());
+	}
 }
 
-void ASkateboarderCharacter::Push()
+void ASkateboarderCharacter::Push(const FInputActionValue& Value)
 {
-    float NewSpeed = GetCharacterMovement()->MaxWalkSpeed + PushForce;
-    GetCharacterMovement()->MaxWalkSpeed = FMath::Clamp(NewSpeed, 600.0f, MaxSpeed);
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && !AnimInstance->IsAnyMontagePlaying() && (GetCharacterMovement()->MaxWalkSpeed < BoostSpeedThreshhold))
+	{
+		AnimInstance->Montage_Play(PushMontage);
+	}
 }
 
-void ASkateboarderCharacter::SlowDown()
-{
-    float NewSpeed = GetCharacterMovement()->MaxWalkSpeed - SlowDownRate;
-    GetCharacterMovement()->MaxWalkSpeed = FMath::Max(NewSpeed, 600.0f);
-}
 
 void ASkateboarderCharacter::PerformJump()
 {
-    if (CanJump())
-    {
-        FVector JumpImpulse = FVector(600.f, 0.f, 350.f); // Slight forward boost
-        LaunchCharacter(JumpImpulse, false, true);
-    }
+	if (GetCharacterMovement()->IsFalling())
+	{
+		OnDoubleJump();
+		return;
+	}
+	if (bCanJump && !GetMesh()->GetAnimInstance()->IsAnyMontagePlaying() && GetCharacterMovement()->MaxWalkSpeed > 300)
+	{
+		float JumpPower = GetCharacterMovement()->MaxWalkSpeed / 2.0f;
+		LaunchCharacter(FVector(0, 0, JumpPower), false, true);
+		bCanJump = false;
+		GetWorld()->GetTimerManager().SetTimer(JumpCooldownTimerHandle, this, &ASkateboarderCharacter::ResetJump, 1.0f, false);
+	}
 }
 
-void ASkateboarderCharacter::ApplyFriction(float DeltaTime)
+void ASkateboarderCharacter::ResetJump()
 {
-    float CurrentSpeed = GetCharacterMovement()->MaxWalkSpeed;
-    float NewSpeed = FMath::FInterpTo(CurrentSpeed, 600.0f, DeltaTime, 1.5f);
-    GetCharacterMovement()->MaxWalkSpeed = NewSpeed;
+	bCanJump = true;
+}
+
+void ASkateboarderCharacter::ExecutePush()
+{
+	if (GetCharacterMovement()->IsFalling())
+	{
+		return;
+	}
+	if (GetCharacterMovement()->MaxWalkSpeed < MaxSpeed)
+	{
+		FVector PushImpulse = GetActorForwardVector() * PushForce;
+		LaunchCharacter(PushImpulse, true, false);
+
+		if (bBoosting)
+		{
+			GetCharacterMovement()->MaxWalkSpeed = MaxSpeed;
+		}
+		else
+		{
+			if (GetCharacterMovement()->MaxWalkSpeed < NormalSpeedThreshhold)
+			{
+				GetCharacterMovement()->MaxWalkSpeed = NormalSpeedThreshhold * 2;
+			}
+			else
+			{
+				GetCharacterMovement()->MaxWalkSpeed = GetCharacterMovement()->MaxWalkSpeed + PushForce/2 ;
+			}
+			 
+		}
+	}
 }
