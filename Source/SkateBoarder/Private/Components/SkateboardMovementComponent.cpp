@@ -8,7 +8,7 @@
 
 USkateboardMovementComponent::USkateboardMovementComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 	AppliedFrictionRate = DefaultFrictionRate;
 	bCanJump = true;
 }
@@ -21,6 +21,13 @@ void USkateboardMovementComponent::Initialize(ACharacter* InOwner)
 		MovementComp = OwnerCharacter->GetCharacterMovement();
 		Mesh = OwnerCharacter->GetMesh();
 	}
+}
+
+void USkateboardMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType,
+	FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	UpdateMovement(DeltaTime);
 }
 
 void USkateboardMovementComponent::UpdateMovement(float DeltaTime)
@@ -78,20 +85,29 @@ void USkateboardMovementComponent::HandlePush()
 
 void USkateboardMovementComponent::HandleJump()
 {
-	if (!MovementComp || !OwnerCharacter || !Mesh || Mesh->GetAnimInstance()->IsAnyMontagePlaying())
+	if (!MovementComp || !OwnerCharacter || !Mesh)
 	{
 		return;
 	}
 	
 	if (MovementComp->IsFalling())
 	{
-		OnDoubleJumped.Broadcast();
+		//perform an air spin
+		if (UAnimInstance* AnimInstance = Mesh->GetAnimInstance())
+		{
+			AnimInstance->Montage_Play(DoubleJumpMontage);
+			OnDoubleJumped.Broadcast();
+		}
 		return;
 	}
 
-	if (bCanJump && MovementComp->MaxWalkSpeed > NormalSpeedThreshold)
+	if (bCanJump && MovementComp->MaxWalkSpeed > NormalSpeedThreshold/2)
 	{
-		float JumpPower = MovementComp->MaxWalkSpeed / 2.f;
+		if (Mesh->GetAnimInstance()->IsAnyMontagePlaying())
+		{
+			Mesh->GetAnimInstance()->StopAllMontages(0.2f);
+		}
+		float JumpPower = BaseJumpPower + MovementComp->MaxWalkSpeed / 10.0f;
 		OwnerCharacter->LaunchCharacter(FVector(0, 0, JumpPower), false, true);
 		OnJumpStart.Broadcast();
 		bCanJump = false;

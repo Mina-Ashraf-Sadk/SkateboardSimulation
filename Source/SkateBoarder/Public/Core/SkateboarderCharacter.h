@@ -21,7 +21,6 @@ public:
 protected:
 	// Lifecycle Functions
 	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	// Input Handling (delegated to movement component)

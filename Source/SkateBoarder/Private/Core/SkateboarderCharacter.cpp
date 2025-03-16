@@ -41,17 +41,6 @@ void ASkateboarderCharacter::BeginPlay()
 	}
 }
 
-void ASkateboarderCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	// Delegate movement update to the movement component
-	if (SkateMovementComponent)
-	{
-		SkateMovementComponent->UpdateMovement(DeltaTime);
-	}
-}
-
 void ASkateboarderCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);

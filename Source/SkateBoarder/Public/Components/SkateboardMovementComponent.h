@@ -17,6 +17,8 @@ public:
 	// Initialize the component with the owning character
 	void Initialize(class ACharacter* InOwner);
 
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
 	// Called every tick from the character
 	void UpdateMovement(float DeltaTime);
 
@@ -60,14 +62,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float BoostSpeedThreshold = 600.f;
-
-	// Boost hold duration: the boost stays at high speed for this long before decaying.
+	
 	UPROPERTY(EditAnywhere, Category = "Movement")
-	float BoostHoldDuration = 1.0f;
-
-	// Internal state
-	float AppliedFrictionRate;
-	bool bCanJump;
+	float BaseJumpPower = 600;
 
 	// References to owner and its components
 	UPROPERTY()
@@ -79,14 +76,23 @@ protected:
 	UPROPERTY()
 	class USkeletalMeshComponent* Mesh;
 
-	// Timer handle for jump cooldown
-	FTimerHandle JumpCooldownTimerHandle;
-
 	// Reference to the push montage (set this from the editor)
 	UPROPERTY(EditAnywhere, Category = "Montages")
 	class UAnimMontage* PushMontage;
 
+	UPROPERTY(EditAnywhere, Category = "Montages")
+	UAnimMontage* DoubleJumpMontage;
+
+	
+private:
+
 	// Helper functions
 	void TryPlayPushMontage(float SpeedThreshold);
 	void ResetJump();
+
+	// Timer handle for jump cooldown
+	FTimerHandle JumpCooldownTimerHandle;
+		
+	float AppliedFrictionRate;
+	bool bCanJump;
 };
