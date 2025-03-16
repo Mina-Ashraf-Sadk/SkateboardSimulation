@@ -131,8 +131,9 @@ void UScoreComponent::CheckForLanding()
 void UScoreComponent::AwardPoints(float AirTime)
 {
 	// No reward for insignificant jumps (low airtime, no spins, no obstacle clearance)
-	if (AirTime < 0.5f && StyleScore == 0 && ObstacleBonus == 0.f)
+	if (AirTime < 1.5f  && ObstacleBonus == 0.f)
 	{
+		OnScoreUpdated.Broadcast(PlayerScore);
 		return;
 	}
 

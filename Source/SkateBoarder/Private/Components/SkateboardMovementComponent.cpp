@@ -36,15 +36,17 @@ void USkateboardMovementComponent::UpdateMovement(float DeltaTime)
 	{
 		OwnerCharacter->AddMovementInput(OwnerCharacter->GetActorForwardVector(), 1);
 
+		// Apply friction to gradually reduce speed
 		float NewSpeed = FMath::FInterpTo(MovementComp->MaxWalkSpeed, 0.f, DeltaTime, AppliedFrictionRate);
-		MovementComp->MaxWalkSpeed = NewSpeed;
 
-		// Print the current speed on screen (debug)
-		if (GEngine)
+		// If the character's velocity is nearly zero, force MaxWalkSpeed to 0
+		if (FMath::IsNearlyZero(OwnerCharacter->GetVelocity().Size(), 100.0f))
 		{
-			FString SpeedMessage = FString::Printf(TEXT("Current Speed: %.2f"), NewSpeed);
-			GEngine->AddOnScreenDebugMessage(1, 0.f, FColor::Cyan, SpeedMessage);
+			NewSpeed = 0.f;
 		}
+
+		MovementComp->MaxWalkSpeed = NewSpeed;
+		
 	}
 }
 
