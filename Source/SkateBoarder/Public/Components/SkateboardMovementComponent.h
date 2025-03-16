@@ -4,6 +4,8 @@
 #include "Components/ActorComponent.h"
 #include "SkateboardMovementComponent.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAction);
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class SKATEBOARDER_API USkateboardMovementComponent : public UActorComponent
 {
@@ -26,6 +28,15 @@ public:
 
 	// Called (typically from an animation notify) to apply push logic
 	void ExecutePush();
+
+	UPROPERTY(BlueprintAssignable)
+	FOnAction OnJumpStart;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnAction OnDoubleJumped;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnAction OnSkatePushed;
 
 protected:
 	// Movement Variables

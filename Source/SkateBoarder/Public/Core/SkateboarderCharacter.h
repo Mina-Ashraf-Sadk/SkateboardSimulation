@@ -2,9 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "InputActionValue.h" // For FInputActionValue
+#include "InputActionValue.h"
 #include "Components/SkateboardMovementComponent.h" 
 #include "SkateboarderCharacter.generated.h"
+
 
 UCLASS()
 class SKATEBOARDER_API ASkateboarderCharacter : public ACharacter
@@ -16,9 +17,6 @@ public:
 	
 	UFUNCTION()
 	void ExecutePush(); // Called (typically via animation notify)
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnDoubleJump();
 
 protected:
 	// Lifecycle Functions

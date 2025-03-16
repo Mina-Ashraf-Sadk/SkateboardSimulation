@@ -78,24 +78,22 @@ void USkateboardMovementComponent::HandlePush()
 
 void USkateboardMovementComponent::HandleJump()
 {
-	if (!MovementComp || !OwnerCharacter)
+	if (!MovementComp || !OwnerCharacter || !Mesh || Mesh->GetAnimInstance()->IsAnyMontagePlaying())
 	{
 		return;
 	}
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Hello, Unreal Debug!"));
-
 	
 	if (MovementComp->IsFalling())
 	{
-		// For a double jump, you could trigger a Blueprint event here.
-		Cast<ASkateboarderCharacter>(OwnerCharacter)->OnDoubleJump();
+		OnDoubleJumped.Broadcast();
 		return;
 	}
 
-	if (bCanJump && Mesh && !Mesh->GetAnimInstance()->IsAnyMontagePlaying() && MovementComp->MaxWalkSpeed > NormalSpeedThreshold)
+	if (bCanJump && MovementComp->MaxWalkSpeed > NormalSpeedThreshold)
 	{
 		float JumpPower = MovementComp->MaxWalkSpeed / 2.f;
 		OwnerCharacter->LaunchCharacter(FVector(0, 0, JumpPower), false, true);
+		OnJumpStart.Broadcast();
 		bCanJump = false;
 		OwnerCharacter->GetWorld()->GetTimerManager().SetTimer(JumpCooldownTimerHandle, this, &USkateboardMovementComponent::ResetJump, 1.0f, false);
 	}
